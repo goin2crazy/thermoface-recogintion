@@ -1,0 +1,21 @@
+existing_checkpoint: ""
+to_save_checkpoint: "face_recognition_d_resnet50d"
+
+model_name: "resnet50d"
+embedding_size: 1024
+
+train_size: 0.85 
+lr: 0.002
+epochs: 100
+
+images_dir: "Face recognetion"
+thermo_configuration: ["RAIN", "ICEBLUE", "IRON", "Red Hot", "White Hot"]
+
+crop_right: 0
+crop_up: 40
+crop_left: 45
+crop_down: 0
+to_image_size: [224, 224]
+
+batch_size: 8 
+early_stopping_patience: 10 
