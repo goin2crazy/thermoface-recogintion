@@ -102,6 +102,72 @@ def test_train_step():
     print(f"Generator Loss: {gen_loss:.4f}")
 
 
+def save_checkpoint(cfg, epoch, face_model, generator, optimizer_face, optimizer_gen, loss_history, val_loss, early_stopper):
+    """
+    Saves checkpoints based on the 'save_method' parameter in the config.
+    
+    Args:
+        cfg (dict): Configuration dictionary.
+        epoch (int): Current training epoch.
+        face_model (torch.nn.Module): Face embedding model.
+        generator (torch.nn.Module): Generator model.
+        optimizer_face (torch.optim.Optimizer): Optimizer for face model.
+        optimizer_gen (torch.optim.Optimizer): Optimizer for generator.
+        loss_history (list): List of training loss history.
+        val_loss (float): Validation loss (sum of embedding and generator losses).
+        early_stopper (EarlyStopping): Early stopping handler.
+    """
+    save_method = cfg.get("save_method", "all")
+    checkpoint_data = {
+        "epoch": epoch,
+        "face_model_state": face_model.state_dict(),
+        "generator_state": generator.state_dict(),
+        "optimizer_face_state": optimizer_face.state_dict(),
+        "optimizer_gen_state": optimizer_gen.state_dict(),
+        "loss_history": loss_history  # Save loss history for analysis
+    }
+
+    if save_method == "all":
+        checkpoint_path = f"{cfg['to_save_checkpoint']}_{epoch}.pth"
+        torch.save(checkpoint_data, checkpoint_path)
+        print(f"Checkpoint saved at {checkpoint_path}")
+
+    elif save_method == "main":
+        # Always update the last checkpoint
+        checkpoint_last = f"{cfg['to_save_checkpoint']}_last.pth"
+        torch.save(checkpoint_data, checkpoint_last)
+        print(f"Last checkpoint saved at {checkpoint_last}")
+        
+        # Save best checkpoint if validation loss improved
+        if val_loss < early_stopper.best_loss:
+            checkpoint_best = f"{cfg['to_save_checkpoint']}_best.pth"
+            torch.save(checkpoint_data, checkpoint_best)
+            print(f"Best checkpoint saved at {checkpoint_best}")
+
+    else:
+        # Assume save_method is a number indicating how many checkpoints to save
+        try:
+            save_number = int(save_method)
+        except ValueError:
+            print("Invalid save_method value in config, defaulting to saving all checkpoints.")
+            save_number = None
+
+        if save_number is not None:
+            num_epochs = cfg["epochs"]
+            checkpoints_epochs = set(round(i * num_epochs / save_number) for i in range(1, save_number + 1))
+            if epoch in checkpoints_epochs:
+                checkpoint_path = f"{cfg['to_save_checkpoint']}_{epoch}.pth"
+                torch.save(checkpoint_data, checkpoint_path)
+                print(f"Checkpoint saved at {checkpoint_path}")
+
+    # Check early stopping
+    if early_stopper.step(val_loss):  
+        print(f"Early stopping at epoch {epoch}")
+        return True  # Signal to stop training
+
+    return False  # Continue training
+
+
 def validate(face_model, generator, val_loader, device):
     """Runs validation on the dataset."""
     face_model.eval()
@@ -232,21 +298,11 @@ def train():
         loss_history["val_gen"].append(val_gen_loss)
 
         # Save checkpoint
-        checkpoint_path = f"{cfg['to_save_checkpoint']}_{epoch}.pth"
-        torch.save({
-            "epoch": epoch,
-            "face_model_state": face_model.state_dict(),
-            "generator_state": generator.state_dict(),
-            "optimizer_face_state": optimizer_face.state_dict(),
-            "optimizer_gen_state": optimizer_gen.state_dict(),
-            "loss_history": loss_history  # Save loss history for analysis
-        }, checkpoint_path)
-        print(f"Checkpoint saved at {checkpoint_path}")
+        should_stop = save_checkpoint(cfg, epoch, face_model, generator, optimizer_face, optimizer_gen, loss_history, val_embedding_loss + val_gen_loss, early_stopper)
 
-        # Check early stopping
-        if early_stopper.step(val_embedding_loss + val_gen_loss):  # Stop if validation loss doesn't improve
-            print(f"Early stopping at epoch {epoch}")
-            break
+        if should_stop:
+            break  # Stop training if early stopping is triggered
+
 
     # Save final loss visualization
     plot_loss(loss_history, save_path="loss_plot.png")

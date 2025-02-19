@@ -1,5 +1,7 @@
-existing_checkpoint: ""
+existing_checkpoint: r""
 to_save_checkpoint: "face_recognition_d_resnet50d"
+save_method: "main"
+
 
 model_name: "resnet50d"
 embedding_size: 1024
