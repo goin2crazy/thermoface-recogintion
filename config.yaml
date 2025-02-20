@@ -1,7 +1,8 @@
 existing_checkpoint: r""
 to_save_checkpoint: "face_recognition_d_resnet50d"
 save_method: "main"
-
+variance_loss_impact: 0.3 
+gen_loss_impact: 1 
 
 model_name: "resnet50d"
 embedding_size: 1024

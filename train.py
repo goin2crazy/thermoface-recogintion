@@ -12,7 +12,13 @@ from utils import *
 import torch.nn as nn
 from tqdm import tqdm
 
-def train_step(face_model, generator, batch, optimizer_face, optimizer_gen, device):
+def train_step(face_model, 
+               generator, 
+               batch, 
+               optimizer_face, 
+               optimizer_gen, 
+               device, 
+               cfg):
     """
     Performs one training step.
     
@@ -57,7 +63,8 @@ def train_step(face_model, generator, batch, optimizer_face, optimizer_gen, devi
     mse_loss_face = nn.MSELoss()(generated_images_for_face, images)
     
     # Total embedding loss: you might consider weighting the variance loss if needed.
-    embedding_loss = variance_loss + mse_loss_face  # You could do: lambda1*variance_loss + lambda2*mse_loss_face
+    embedding_loss = (variance_loss * cfg['variance_loss_impact'] 
+                      + mse_loss_face * cfg['gen_loss_impact'])  # You could do: lambda1*variance_loss + lambda2*mse_loss_face
     embedding_loss.backward()
     optimizer_face.step()
     
@@ -270,7 +277,7 @@ def train():
                              else torch.stack([b[key] for b in batch]).to(device)
                              for key in batch[0].keys()}
 
-                    embedding_loss, gen_loss = train_step(face_model, generator, batch, optimizer_face, optimizer_gen, device)
+                    embedding_loss, gen_loss = train_step(face_model, generator, batch, optimizer_face, optimizer_gen, device, cfg)
 
                     total_embedding_loss += embedding_loss
                     total_gen_loss += gen_loss

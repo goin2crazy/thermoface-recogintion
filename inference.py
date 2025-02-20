@@ -109,15 +109,27 @@ def main():
         "--checkpoint", type=str, default=None,
         help="Path to the model checkpoint. If not provided, will use default from config."
     )
-    # Only required for embedding-test
     parser.add_argument(
         "--compare-images", type=str, nargs="+",
         help="List of image paths to compare with (required for embedding-test)."
     )
+    parser.add_argument(
+        "--config-path", type=str, default="", 
+        help="Path to the config file. If empty or invalid, uses 'config.yaml' in the current directory."
+    )
+
     args = parser.parse_args()
 
-    cfg = load_config()
+    # Determine config file path
+    config_path = args.config_path.strip()
+    if not config_path or not os.path.exists(config_path):
+        config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
+        print(f"Using default config: {config_path}")
+
+    # Load configuration
+    cfg = load_config(config_path)
     print(cfg)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Initialize models
